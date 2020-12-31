@@ -4,9 +4,9 @@ use bitintr::Lzcnt;
 extern crate nalgebra as na;
 use na::Vector2;
 
-type Vec2u32 = Vector2<u32>;
+pub type Vec2u32 = Vector2<u32>;
 
-type TriangleU32 = (Vec2u32, Vec2u32, Vec2u32);
+pub type TriangleU32 = (Vec2u32, Vec2u32, Vec2u32);
 
 /// get the corresponding index of the first triangle 
 /// of a given level
@@ -153,20 +153,66 @@ pub fn bin_id_to_level(bin_id: u32) -> u32 {
 // /
 // /  A +____.____+ B     B +----+ C     C +____+ A
 ///
+/// ```
+/// # use bevy_terrain::RTIN::*;
+/// let n_tiles = 4;
+/// assert_eq!(get_triangle_coords(0b11, n_tiles),  
+///    (Vec2u32::new(0, 0), Vec2u32::new(4, 4), Vec2u32::new(4, 0)) );
+/// assert_eq!(get_triangle_coords(0b110, n_tiles),  
+///    (Vec2u32::new(0, 4), Vec2u32::new(4, 4), Vec2u32::new(2, 2)) );
+/// assert_eq!(get_triangle_coords(0b1_1110, n_tiles),  
+///    (Vec2u32::new(2, 4), Vec2u32::new(2, 2), Vec2u32::new(1, 3)) );
+/// ```
+///
 pub fn get_triangle_coords(bin_id: u32, n_tiles: u32) -> TriangleU32 {
     let mut a = Vec2u32::new(0, 0);
     let mut b = Vec2u32::new(0, 0);
     let mut c = Vec2u32::new(0, 0);
 
-    // north east right-angle corner
-    a[0] = 0; 
-    a[1] = 0; 
-    b[0] = n_tiles; 
-    b[1] = n_tiles; 
-    c[0] = n_tiles; 
-    c[1] = 0; 
 
-    // while()
+    for step in bin_id_to_partition_steps(bin_id) {
+        match step {
+            PartitionStep::TopRight => {
+                // north east right-angle corner
+                a[0] = 0; 
+                a[1] = 0; 
+                b[0] = n_tiles; 
+                b[1] = n_tiles; 
+                c[0] = n_tiles; 
+                c[1] = 0; 
+            }
+            PartitionStep::BottomLeft => {
+                // north east right-angle corner
+                a[0] = n_tiles; 
+                a[1] = n_tiles; 
+                b[0] = 0; 
+                b[1] = 0; 
+                c[0] = 0; 
+                c[1] = n_tiles; 
+
+            }
+            PartitionStep::Left => {
+                let (new_a, new_b, new_c) = (
+                    c, 
+                    a, 
+                    (a+b) / 2
+                );
+                a = new_a;
+                b = new_b;
+                c = new_c;
+            }
+            PartitionStep::Right => {
+                let (new_a, new_b, new_c) = (
+                    b, 
+                    c, 
+                    (a+b) / 2
+                );
+                a = new_a;
+                b = new_b;
+                c = new_c;
+            }
+        }
+    }
 
     (a, b, c)
 }
@@ -183,7 +229,6 @@ pub enum PartitionStep {
 ///
 /// ```
 /// # use bevy_terrain::RTIN::*;
-/// use PartitionStep;
 /// assert_eq!(bin_id_to_partition_steps(0b10), [PartitionStep::BottomLeft]);
 /// assert_eq!(bin_id_to_partition_steps(0b11), [PartitionStep::TopRight]);
 /// assert_eq!(bin_id_to_partition_steps(0b110), 
