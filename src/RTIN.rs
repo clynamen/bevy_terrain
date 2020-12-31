@@ -1,4 +1,12 @@
+use bevy::{asset::filesystem_watcher_system, math::{Vec2, vec2}};
 use bitintr::Lzcnt;
+
+extern crate nalgebra as na;
+use na::Vector2;
+
+type Vec2u32 = Vector2<u32>;
+
+type TriangleU32 = (Vec2u32, Vec2u32, Vec2u32);
 
 /// get the corresponding index of the first triangle 
 /// of a given level
@@ -90,11 +98,118 @@ impl MSBScan for u32 {
 /// assert_eq!(bin_id_to_index(0b1011), 9);
 /// ```
 ///
-///
 pub fn bin_id_to_index(bin_id: u32) -> u32 {
-    let level = bin_id.msbscan() - 2;
+    let level = bin_id_to_level(bin_id);
     let index_level_start = get_index_level_start(level);
     let index_in_level = bin_id_to_index_in_level(bin_id);
 
     index_level_start + index_in_level
+}
+
+pub fn bin_id_to_level(bin_id: u32) -> u32 {
+    bin_id.msbscan() - 2
+}
+
+
+/// 
+/// vertex C always on the right-angle corner
+/// a, b, c ordering always clockwise
+/// 
+// / A +----+ C
+// /    \   |
+// /     \  |
+// /      \ |
+// /       \|
+// /        + B
+// /
+// / B +
+// /   |\   
+// /   | \  
+// /   |  \ 
+// /   |   \
+// / C +----+ A
+// /
+// /        + A
+// /       /|
+// /      / |
+// /     /  |
+// /    /   |
+// / B +----+ C
+// /
+// / C +----+ B
+// /   |   /
+// /   |  / 
+// /   | /  
+// /   |/   
+// / A + 
+// /
+// /   parent triangle is split into left and right triangle 
+// /
+// /      C  +                   + A     B +
+// /        /.\                 /|         |\ 
+// /       / . \               / |         | \
+// /      /  .  \      =>     /  |         |  \
+// /     /   .   \           /   |         |   \
+// /
+// /  A +____.____+ B     B +----+ C     C +____+ A
+///
+pub fn get_triangle_coords(bin_id: u32, n_tiles: u32) -> TriangleU32 {
+    let mut a = Vec2u32::new(0, 0);
+    let mut b = Vec2u32::new(0, 0);
+    let mut c = Vec2u32::new(0, 0);
+
+    // north east right-angle corner
+    a[0] = 0; 
+    a[1] = 0; 
+    b[0] = n_tiles; 
+    b[1] = n_tiles; 
+    c[0] = n_tiles; 
+    c[1] = 0; 
+
+    // while()
+
+    (a, b, c)
+}
+
+#[derive(Eq, PartialEq, Debug)]
+pub enum PartitionStep {
+    TopRight,
+    BottomLeft,
+    Left, 
+    Right
+}  
+
+///
+///
+/// ```
+/// # use bevy_terrain::RTIN::*;
+/// use PartitionStep;
+/// assert_eq!(bin_id_to_partition_steps(0b10), [PartitionStep::BottomLeft]);
+/// assert_eq!(bin_id_to_partition_steps(0b11), [PartitionStep::TopRight]);
+/// assert_eq!(bin_id_to_partition_steps(0b110), 
+///   [PartitionStep::BottomLeft, PartitionStep::Left]);
+/// assert_eq!(bin_id_to_partition_steps(0b10110), 
+///   [PartitionStep::BottomLeft, PartitionStep::Left, PartitionStep::Left,
+///    PartitionStep::Right]);
+/// ```
+///
+pub fn bin_id_to_partition_steps(bin_id: u32) -> Vec::<PartitionStep> {
+    let mut steps = Vec::new();
+    let triangle_level = bin_id_to_level(bin_id);
+
+    if bin_id & 1 > 0 {
+        steps.push(PartitionStep::TopRight);
+    } else {
+        steps.push(PartitionStep::BottomLeft);
+    }
+
+    for i in 1..(triangle_level+1) {
+       if bin_id & (1 << i) > 0 {
+        steps.push(PartitionStep::Left);
+       } else {
+        steps.push(PartitionStep::Right);
+       }
+    }
+
+    steps
 }
