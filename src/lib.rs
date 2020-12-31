@@ -1,2 +1,3 @@
 pub mod terrain;
-pub mod RTIN;
+pub mod rtin;
+pub mod terrain_rtin;
