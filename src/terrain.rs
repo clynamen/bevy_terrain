@@ -18,7 +18,7 @@ pub struct TerrainImageLoadOptions {
 pub fn terrain_example() -> Mesh {
     let options = TerrainImageLoadOptions {
         min_image_height : 0f32,
-        max_image_height : 10f32,
+        max_image_height : 3f32,
         pixel_side_length : 0.1f32,
     };
 

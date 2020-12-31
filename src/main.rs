@@ -1,12 +1,10 @@
-mod terrain;
-
+use bevy_terrain::terrain::terrain_example;
 use bevy::prelude::*;
 use bevy_fly_camera::{FlyCamera, FlyCameraPlugin};
 use bevy_render::{
     pipeline::PrimitiveTopology,
     mesh::{Mesh, VertexAttributeValues, Indices},
 };
-use terrain::terrain_example;
 
 fn main() {
 
