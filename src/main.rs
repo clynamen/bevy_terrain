@@ -5,6 +5,7 @@ use bevy_render::{
     pipeline::PrimitiveTopology,
     mesh::{Mesh, VertexAttributeValues, Indices},
 };
+use bevy_terrain::terrain_rtin::rtin_terrain_example;
 
 fn main() {
 
@@ -25,7 +26,8 @@ fn setup(
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     // let terrain_mesh = make_terrain_mesh();
-    let terrain_mesh = terrain_example();
+    // let terrain_mesh = terrain_example();
+    let terrain_mesh = rtin_terrain_example();
 
     let terrain_mesh_handle = meshes.add(terrain_mesh);
 
@@ -64,7 +66,7 @@ fn setup(
         })
         // camera
         .spawn(Camera3dBundle {
-            transform: Transform::from_translation(Vec3::new(-1.0, 10.0, -1.0))
+            transform: Transform::from_translation(Vec3::new(10.0, 10.0, 10.0))
                 .looking_at(Vec3::default(), Vec3::unit_y()),
             ..Default::default()
         })
