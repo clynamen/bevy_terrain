@@ -1,13 +1,17 @@
 use image::{ImageBuffer, Luma};
+extern crate nalgebra as na;
 use bevy_render::{
     pipeline::PrimitiveTopology,
     mesh::{Mesh, VertexAttributeValues, Indices},
 };
-use std::{cmp::max, vec::Vec};
+use na::Scalar;
+use std::{cmp::max, collections::HashMap, vec::Vec};
 use bevy::prelude::*;
 use anyhow::Result;
 
-use crate::rtin::{TriangleU32, Vec2u32, get_index_level_start, get_triangle_children_indices, get_triangle_coords, index_to_bin_id, pixel_coords_for_triangle_mid_point};
+type ErrorsVec = Vec::<f32>;
+
+use crate::rtin::{BinId, TriangleU32, Vec2u32, get_index_level_start, get_triangle_children_indices, get_triangle_coords, index_to_bin_id, pixel_coords_for_triangle_mid_point};
 
 type HeightMapU16 = ImageBuffer<Luma<u16>, Vec::<u16>>;
 
@@ -40,10 +44,10 @@ pub fn triangleu32_to_trianglef32(triangle: TriangleU32) -> Trianglef32 {
     )
 }
 
-pub fn rtin_build_terrain_from_heightmap_process_triangle(
+pub fn rtin_select_triangles_for_heightmap_process_triangle(
     heightmap: &HeightMapU16, 
     errors_vec: &Vec::<f32>,
-    triangles: &mut Vec::<Trianglef32>, 
+    triangles: &mut Vec::<BinId>, 
     triangle_index: u32, 
     error_threshold: f32)  {
 
@@ -59,23 +63,12 @@ pub fn rtin_build_terrain_from_heightmap_process_triangle(
     let error_within_threshold = this_triangle_error <= error_threshold;
 
     if error_within_threshold || leaf_triangle {
-        let n_tiles = heightmap.width();
-        let triangle_coords = get_triangle_coords(triangle_bin_id, n_tiles);
 
-        let mut triangle  = triangleu32_to_trianglef32(triangle_coords);
-        
-        triangle.0[1] = heightmap.get_pixel(triangle_coords.0[0].min(n_tiles-1),
-            triangle_coords.0[1].min(n_tiles-1)).0[0] as f32 / std::u16::MAX as f32;
-        triangle.1[1] = heightmap.get_pixel(triangle_coords.1[0].min(n_tiles-1),
-            triangle_coords.1[1].min(n_tiles-1)).0[0] as f32 / std::u16::MAX as f32;
-        triangle.2[1] = heightmap.get_pixel(triangle_coords.2[0].min(n_tiles-1),
-            triangle_coords.2[1].min(n_tiles-1)).0[0] as f32 / std::u16::MAX as f32;
-
-        triangles.push(triangle);
+        triangles.push(triangle_bin_id);
     } else {
-        rtin_build_terrain_from_heightmap_process_triangle(
+        rtin_select_triangles_for_heightmap_process_triangle(
             heightmap, errors_vec, triangles, left_child_index, error_threshold);
-        rtin_build_terrain_from_heightmap_process_triangle(
+        rtin_select_triangles_for_heightmap_process_triangle(
             heightmap, errors_vec, triangles, right_child_index, error_threshold);
     }
 }
@@ -84,48 +77,62 @@ pub fn rtin_terrain_example() -> Mesh {
     let error_threshold = 0.25f32;
     let filename = "terrain.png";
 
-    let mesh = rtin_load_terrain_bitmap(filename, error_threshold, 10.0);
+    let mesh = rtin_load_terrain_bitmap(
+        filename, error_threshold, 10.0, false);
 
     mesh.unwrap()
 }
 
-pub fn rtin_load_terrain_bitmap(filename: &str, error_threshold: f32, y_scale: f32) -> Result<Mesh> {
+pub fn rtin_load_terrain_bitmap(
+        filename: &str, error_threshold: f32, y_scale: f32,
+            enable_wireframe: bool) -> Result<Mesh> {
     let terrain_bitmap = image::open(filename)?;
-    let mut mesh = Mesh::new(PrimitiveTopology::LineList);
+
+    let mut mesh = if enable_wireframe {
+        Mesh::new(PrimitiveTopology::LineList)
+    } else {
+        Mesh::new(PrimitiveTopology::TriangleList)
+    };
 
     let heightmap = terrain_bitmap.as_luma16().unwrap();
 
-    let triangles = rtin_build_terrain_from_heightmap(heightmap, error_threshold);
+    let terrain_mesh_data = rtin_build_terrain_from_heightmap(heightmap, error_threshold);
 
-    // println!("TRIANGLE LIST START");
-    // for (triangle_index, &triangle) in triangles.iter().enumerate() {
-    //     println!("{}: {:?}", triangle_index, triangle);
-    // }
-    // println!("TRIANGLE LIST END");
 
     let mut vertices : Vec::<[f32; 3]> = Vec::new();
     let mut normals : Vec::<[f32; 3]> = Vec::new();
     let mut indices : Vec::<u32> = Vec::new();
 
-    vertices.resize(triangles.len() * 3, [0f32, 0f32, 0f32]);
+    vertices.reserve(terrain_mesh_data.vertices.len());
+    for vertex in terrain_mesh_data.vertices {
+        vertices.push([vertex.x, vertex.y * y_scale, vertex.z]);
+    }
 
-    for (triangle_index, &triangle) in triangles.iter().enumerate() {
-       vertices[triangle_index*3+0] = [
-           triangle.0[0], triangle.0[1] * y_scale, triangle.0[2]]; 
-       vertices[triangle_index*3+1] = [
-           triangle.1[0], triangle.1[1] * y_scale, triangle.1[2]]; 
-       vertices[triangle_index*3+2] = [
-           triangle.2[0], triangle.2[1] * y_scale, triangle.2[2]]; 
+    let triangle_number = terrain_mesh_data.indices.len() / 3;
 
-       indices.push( (triangle_index*3+0) as u32 );
-       indices.push( (triangle_index*3+1) as u32 );
-       indices.push( (triangle_index*3+1) as u32 );
-       indices.push( (triangle_index*3+2) as u32 );
-       indices.push( (triangle_index*3+2) as u32 );
-       indices.push( (triangle_index*3+0) as u32 );
+    if enable_wireframe {
+
+        for i in 0..triangle_number {
+            indices.push(terrain_mesh_data.indices[i*3+0]);
+            indices.push(terrain_mesh_data.indices[i*3+1]);
+            indices.push(terrain_mesh_data.indices[i*3+1]);
+            indices.push(terrain_mesh_data.indices[i*3+2]);
+            indices.push(terrain_mesh_data.indices[i*3+2]);
+            indices.push(terrain_mesh_data.indices[i*3+0]);
+        }
+
+    } else {
+
+        for i in 0..triangle_number {
+            indices.push(terrain_mesh_data.indices[i*3+0]);
+            indices.push(terrain_mesh_data.indices[i*3+1]);
+            indices.push(terrain_mesh_data.indices[i*3+2]);
+        }
+        
     }
 
     normals.resize(vertices.len(), [0.0f32, 1.0f32, 0.0f32]);
+
     let uvs = vec![[0.0, 0.0, 0.0]; vertices.len()];
 
 
@@ -143,26 +150,128 @@ pub fn rtin_load_terrain_bitmap(filename: &str, error_threshold: f32, y_scale: f
     Ok(mesh)
 }
 
-pub fn rtin_build_terrain_from_heightmap(
-    heightmap: &HeightMapU16, error_threshold: f32) -> Vec::<Trianglef32> {
+pub struct TerrainMeshData {
+   pub vertices: Vec::<Vec3>,
+   pub indices: Vec::<u32>
+}
 
-    let mut triangles = Vec::<Trianglef32>::new();
+trait VecClamp {
+    fn clamp(&self, left: &Self, right: &Self) -> Self;
+}
+
+impl<T> VecClamp for na::Vector2<T> where T: Scalar + Ord + Copy {
+
+    fn clamp(&self, left: &Self, right: &Self) -> Self {
+        na::Vector2::<T>::new(
+            self[0].max(left[0]).min(right[0]),
+            self[1].max(left[1]).min(right[1]),
+        )
+    }
+}
+
+/// sample the height of a triangle corner
+/// by averaging the heightmap value of the four pixel
+/// around the corner. Since the vertices of the triangles
+/// are on a (N+1, N+1) grid, we will use the 
+/// (0, 0), (0, +1), (+1, 0), (1, 1) offsets
+///
+///   -------------
+///   |     |     |
+///   |     |     |
+///   |-----X-----|
+///   |     |     |
+///   |     |     |
+///   -------------
+///
+pub fn sample_heightmap_height_corner_mean(
+    heightmap: &HeightMapU16, corner: Vec2u32) -> f32 {        
+
+    let min_heightmap_vec2 = Vec2u32::new(0, 0);
+    let max_heightmap_vec2 = Vec2u32::new(heightmap.width()-1, heightmap.height()-1);
+        
+    let offsets = &[
+        Vec2u32::new(0, 0),
+        // Vec2u32::new(0, 1),
+        // Vec2u32::new(1, 0),
+        // Vec2u32::new(1, 1),
+    ];
+    let mean = offsets.iter()
+        .map(|offset| (corner+offset).clamp(&min_heightmap_vec2, &max_heightmap_vec2) )
+        .map(|pixel_coord| 
+            heightmap.get_pixel(pixel_coord[0], pixel_coord[1]).0[0] as f32 / std::u16::MAX as f32)
+        .sum::<f32>() / offsets.len() as f32;
+
+    mean
+}
+
+pub fn rtin_build_terrain_from_heightmap(
+    heightmap: &HeightMapU16, error_threshold: f32) -> TerrainMeshData {
     let errors_vec = build_triangle_error_vec(heightmap);
 
-    rtin_build_terrain_from_heightmap_process_triangle(
+    let mut vertices = Vec::<Vec3>::new();
+    let mut indices = Vec::<u32>::new();
+    let mut vertices_array_position = HashMap::<u32, usize>::new(); 
+
+    let triangle_bin_ids = rtin_select_triangles_for_heightmap(
+        heightmap, &errors_vec, error_threshold);
+
+    for triangle_bin_id in triangle_bin_ids {
+        let n_tiles = heightmap.width();
+        let triangle_coords = get_triangle_coords(triangle_bin_id, n_tiles);
+        let new_vertices = &[triangle_coords.0, triangle_coords.1, triangle_coords.2];
+
+        for new_vertex in new_vertices {
+            let vertex_id = new_vertex[1] * heightmap.width() + new_vertex[0];
+
+
+            let vertex_index = if vertices_array_position.contains_key(&vertex_id) {
+                *vertices_array_position.get(&vertex_id).unwrap()
+            } else {
+                let new_vertex_index = vertices.len();
+                vertices_array_position.insert(vertex_id, new_vertex_index);
+                let vertex_height = sample_heightmap_height_corner_mean(
+                    heightmap, *new_vertex);
+                let new_vertex_3d = Vec3::new(
+                    new_vertex[0] as f32,
+                    vertex_height,
+                    new_vertex[1] as f32,
+                );
+                vertices.push(new_vertex_3d);
+                new_vertex_index
+            };
+            indices.push(vertex_index as u32);
+        }
+
+    }
+
+    TerrainMeshData {
+        vertices, 
+        indices
+    }
+}
+
+pub fn rtin_select_triangles_for_heightmap(
+    heightmap: &HeightMapU16, 
+    errors_vec: &ErrorsVec, error_threshold: f32) -> Vec::<BinId> {
+
+    let mut triangles = Vec::<BinId>::new();
+
+    rtin_select_triangles_for_heightmap_process_triangle(
         heightmap, &errors_vec, &mut triangles, 
         0, error_threshold);
-    rtin_build_terrain_from_heightmap_process_triangle(
+    rtin_select_triangles_for_heightmap_process_triangle(
         heightmap, &errors_vec, &mut triangles, 
         1, error_threshold);
 
     triangles
 }
 
+
 const fn num_bits<T>() -> usize { std::mem::size_of::<T>() * 8 }
 fn log_2(x: u32) -> u32 {
     num_bits::<u32>() as u32 - x.leading_zeros() - 1
 }
+
 
 pub fn build_triangle_error_vec(heightmap: &HeightMapU16) -> Vec::<f32> {
     assert_valid_rtin_heightmap(heightmap);

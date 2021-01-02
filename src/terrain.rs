@@ -8,6 +8,8 @@ use bevy_render::{
 };
 use image::Luma;
 
+pub struct Terrain {}
+
 pub struct TerrainImageLoadOptions {
     min_image_height : f32,
     max_image_height : f32,

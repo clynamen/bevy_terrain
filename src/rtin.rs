@@ -4,6 +4,8 @@ use bitintr::Lzcnt;
 extern crate nalgebra as na;
 use na::Vector2;
 
+pub type BinId = u32;
+
 pub type Vec2u32 = Vector2<u32>;
 
 pub type TriangleU32 = (Vec2u32, Vec2u32, Vec2u32);

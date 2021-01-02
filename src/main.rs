@@ -1,4 +1,7 @@
-use bevy_terrain::terrain::terrain_example;
+mod ui;
+
+use std::sync::mpsc;
+use bevy_terrain::terrain::{terrain_example, Terrain};
 use bevy::prelude::*;
 use bevy_fly_camera::{FlyCamera, FlyCameraPlugin};
 use bevy_render::{
@@ -6,6 +9,7 @@ use bevy_render::{
     mesh::{Mesh, VertexAttributeValues, Indices},
 };
 use bevy_terrain::terrain_rtin::rtin_terrain_example;
+use ui::{setup_ui, ButtonMaterials, button_system};
 
 fn main() {
 
@@ -15,15 +19,20 @@ fn main() {
         .add_resource(Msaa { samples: 4 })
         .add_plugins(DefaultPlugins)
         .add_plugin(FlyCameraPlugin)
+        .init_resource::<ButtonMaterials>()
         .add_startup_system(setup.system())
+        .add_system(button_system.system())
         .run();
 }
+
 
 /// set up a simple 3D scene
 fn setup(
     commands: &mut Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    asset_server: Res<AssetServer>,
+    button_materials: Res<ButtonMaterials>,
 ) {
     // let terrain_mesh = make_terrain_mesh();
     // let terrain_mesh = terrain_example();
@@ -39,7 +48,7 @@ fn setup(
             mesh: terrain_mesh_handle,
             material: materials.add(Color::rgb(0.3, 0.5, 0.3).into()),
             ..Default::default()
-        })
+        }).with(Terrain{})
         // cube
         .spawn(PbrBundle {
             mesh: meshes.add(Mesh::from(shape::Cube { size: 0.1 })),
@@ -71,6 +80,10 @@ fn setup(
             ..Default::default()
         })
         .with(FlyCamera::default());
+
+    setup_ui(commands,
+        asset_server,
+        button_materials);
 }
 
 
