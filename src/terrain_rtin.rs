@@ -1,4 +1,4 @@
-use crate::terrain_material::TerrainMaterial;
+use crate::{terrain_common::TerrainImageLoadOptions, terrain_material::TerrainMaterial};
 // use Srgb::into_raw;
 use image::{ImageBuffer, Luma};
 extern crate nalgebra as na;
@@ -18,7 +18,14 @@ use crate::rtin::{BinId, TriangleU32, Vec2u32, get_index_level_start, get_triang
 
 type HeightMapU16 = ImageBuffer<Luma<u16>, Vec::<u16>>;
 
+#[derive(Default)]
+pub struct RtinParams {
+    pub error_threshold: f32, 
+    pub load_options: TerrainImageLoadOptions
+}
+
 pub type Trianglef32 = (Vec3, Vec3, Vec3);
+
 
 /// https://codegolf.stackexchange.com/questions/44680/showcase-of-languages
 pub fn is_power_of_2(x: u32) -> bool {
@@ -95,30 +102,33 @@ pub fn rtin_select_triangles_for_heightmap_process_triangle(
     }
 }
 
-pub fn rtin_terrain_example() -> Mesh {
-    let error_threshold = 0.25f32;
-    let filename = "terrain.png";
+pub fn rtin_load_terrain(
+    filename: &str,
+    rtin_params: &RtinParams) -> (Mesh, Mesh) {
 
-    let mesh = rtin_load_terrain_bitmap(
-        filename, error_threshold, 10.0, false);
+    let terrain_image = image::open(filename).unwrap();
+    let terrain_heightmap = terrain_image.as_luma16().unwrap();
+    let terrain_mesh_data = rtin_build_terrain_from_heightmap(
+        terrain_heightmap, rtin_params.error_threshold);
 
-    mesh.unwrap()
+    let shaded_mesh = rtin_make_terrain_mesh(
+        &terrain_mesh_data, &rtin_params.load_options, false);
+    let wireframe_mesh = rtin_make_terrain_mesh(
+        &terrain_mesh_data, &rtin_params.load_options, true);
+
+    (shaded_mesh, wireframe_mesh)
 }
 
-pub fn rtin_load_terrain_bitmap(
-        filename: &str, error_threshold: f32, y_scale: f32,
-            enable_wireframe: bool) -> Result<Mesh> {
-    let terrain_bitmap = image::open(filename)?;
+pub fn rtin_make_terrain_mesh(
+        terrain_mesh_data: &TerrainMeshData, 
+        load_options: &TerrainImageLoadOptions,
+        enable_wireframe: bool) -> Mesh {
 
     let mut mesh = if enable_wireframe {
         Mesh::new(PrimitiveTopology::LineList)
     } else {
         Mesh::new(PrimitiveTopology::TriangleList)
     };
-
-    let heightmap = terrain_bitmap.as_luma16().unwrap();
-
-    let terrain_mesh_data = rtin_build_terrain_from_heightmap(heightmap, error_threshold);
 
     let mut vertices : Vec::<[f32; 3]> = Vec::new();
     let mut indices : Vec::<u32> = Vec::new();
@@ -133,10 +143,6 @@ pub fn rtin_load_terrain_bitmap(
     colors.reserve(vertices.len());
     indices.reserve(indices_len);
 
-    // let grad = Gradient::new(vec![
-    //     LinSrgb::new(1.0, 0.1, 0.1),
-    //     LinSrgb::new(0.1, 1.0, 1.0)
-    // ]);
     let grad = Gradient::new(vec![
         Hsv::from(LinSrgb::new(1.0, 0.1, 0.1)),
         Hsv::from(LinSrgb::new(0.1, 1.0, 1.0))
@@ -144,9 +150,9 @@ pub fn rtin_load_terrain_bitmap(
 
     for vertex in &terrain_mesh_data.vertices {
         vertices.push(
-            [vertex.x, 
-            vertex.y * y_scale, 
-            vertex.z]);
+            [vertex.x * load_options.pixel_side_length, 
+            vertex.y * load_options.max_image_height, 
+            vertex.z * load_options.pixel_side_length]);
 
         let color = grad.get(vertex.y);
         let raw_float : Srgb::<f32> = 
@@ -181,7 +187,7 @@ pub fn rtin_load_terrain_bitmap(
     );
     mesh.set_indices(Some(Indices::U32(indices)));
 
-    Ok(mesh)
+    mesh
 }
 
 pub struct TerrainMeshData {

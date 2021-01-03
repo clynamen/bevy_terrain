@@ -1,13 +1,13 @@
 mod ui;
 
-use bevy_terrain::terrain_common::{Terrain, TerrainImageLoadOptions};
+use bevy_terrain::{terrain_common::{
+    Terrain, TerrainImageLoadOptions, TerrainMeshResource}, terrain_rtin::{RtinParams, rtin_load_terrain}};
 use bevy_terrain::{gizmo::add_axis_gizmo, terrain::{terrain_example}, terrain_material::TerrainMaterial};
 use bevy::prelude::*;
 use bevy_fly_camera::{FlyCamera, FlyCameraPlugin};
 use bevy_render::{
     mesh::{Mesh},
 };
-use bevy_terrain::terrain_rtin::rtin_terrain_example;
 use bevy_terrain::terrain_material::add_terrain_material;
 use ui::{ButtonMaterials, button_system, setup_ui, show_ui_system};
 
@@ -28,6 +28,8 @@ fn main() {
         .add_plugin(FlyCameraPlugin)
         .add_asset::<TerrainMaterial>()
         .init_resource::<ButtonMaterials>()
+        .init_resource::<TerrainMeshResource>()
+        .init_resource::<RtinParams>()
         .add_startup_system(setup.system())
         .add_system(button_system.system())
         .add_system(show_ui_system.system())
@@ -35,7 +37,6 @@ fn main() {
 }
 
 
-/// set up a simple 3D scene
 fn setup(
     commands: &mut Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -44,21 +45,37 @@ fn setup(
     button_materials: Res<ButtonMaterials>,
     pipelines: ResMut<Assets<PipelineDescriptor>>,
     shaders: ResMut<Assets<Shader>>,
-    render_graph: ResMut<RenderGraph>
+    render_graph: ResMut<RenderGraph>,
+    mut rtin_params: ResMut<RtinParams>,
+    mut terrain_mesh_res: ResMut<TerrainMeshResource>,
+    color_materials: ResMut<Assets<ColorMaterial>>,
 ) {
-    let terrain_mesh = rtin_terrain_example();
 
-    let terrain_mesh_handle = meshes.add(terrain_mesh);
+    let image_filename = "terrain.png";
+
+    rtin_params.error_threshold = 0.2;
+    rtin_params.load_options = TerrainImageLoadOptions {
+        max_image_height : 10f32,
+        pixel_side_length: 1f32
+    };
+
+    let (terrain_shaded_mesh, terrain_wireframe_mesh) = 
+        rtin_load_terrain(image_filename,
+            &rtin_params);
+
+    let terrain_shaded_mesh_handle = meshes.add(terrain_shaded_mesh);
+    let terrain_wireframe_mesh_handle = meshes.add(terrain_wireframe_mesh);
+
+    terrain_mesh_res.shaded = terrain_shaded_mesh_handle;
+    terrain_mesh_res.wireframe = terrain_wireframe_mesh_handle;
 
     let pipeline_handle = add_terrain_material(
         pipelines, shaders, render_graph);
 
 
-    // add entities to the world
     commands
-        // terrain
         .spawn(MeshBundle {
-            mesh: terrain_mesh_handle,
+            mesh: terrain_mesh_res.shaded.clone(),
             render_pipelines: RenderPipelines::from_pipelines(vec![RenderPipeline::new(
                 pipeline_handle,
             )]),
@@ -85,5 +102,6 @@ fn setup(
 
     setup_ui(commands,
         asset_server,
-        button_materials);
+        color_materials,
+        button_materials, rtin_params.into());
 }
