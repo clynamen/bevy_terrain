@@ -372,9 +372,9 @@ pub fn build_triangle_errors_vec(heightmap: &HeightMapU16) -> Vec::<f32> {
         let triangle_bin_id = index_to_bin_id(triangle_index);
 
         let midpoint =
-            pixel_coords_for_triangle_mid_point(triangle_bin_id, side);
+            pixel_coords_for_triangle_mid_point(triangle_bin_id, grid_size);
 
-        let triangle_coords = get_triangle_coords(triangle_bin_id, side);
+        let triangle_coords = get_triangle_coords(triangle_bin_id, grid_size);
         let h0 = sample_heightmap_height_corner_mean(heightmap, triangle_coords.0);
         let h1 = sample_heightmap_height_corner_mean(heightmap, triangle_coords.1);
         let midpoint_interpolated = (h1+h0)/2.0;
@@ -401,10 +401,12 @@ pub fn build_triangle_errors_vec(heightmap: &HeightMapU16) -> Vec::<f32> {
             
             // println!("  right {:b} left {:b}", right_child_bin_id, left_child_bin_id);
 
+            let prev_error = errors_vec[this_triangle_mid_point_error_vec_index];
             let right_error = errors_vec[right_errors_vec_index];
             let left_error = errors_vec[left_errors_vec_index];
 
-            errors_vec[this_triangle_mid_point_error_vec_index] = left_error.max(right_error).max(this_triangle_error);
+            errors_vec[this_triangle_mid_point_error_vec_index] = 
+                prev_error.max(left_error).max(right_error).max(this_triangle_error);
         }
         // println!("  it has error = {}", errors_vec[this_triangle_mid_point_error_vec_index]);
        

@@ -75,7 +75,7 @@ pub fn button_system(
     if new_mesh_type.is_some() {
         let mesh_type = new_mesh_type.unwrap();
 
-        let error_threshold = 0.25f32;
+        let error_threshold = 0.10f32;
         let filename = "terrain.png";
 
         let mesh = rtin_load_terrain_bitmap(
