@@ -1,6 +1,6 @@
 use anyhow::Result;
-use bevy::prelude::*;
 use std::vec::Vec;
+use crate::terrain_common::TerrainImageLoadOptions;
 use image::ImageBuffer;
 use bevy_render::{
     pipeline::PrimitiveTopology,
@@ -8,20 +8,11 @@ use bevy_render::{
 };
 use image::Luma;
 
-pub struct Terrain {}
-
-pub struct TerrainImageLoadOptions {
-    min_image_height : f32,
-    max_image_height : f32,
-    pixel_side_length : f32
-}
-
 
 pub fn terrain_example() -> Mesh {
     let options = TerrainImageLoadOptions {
-        min_image_height : 0f32,
-        max_image_height : 3f32,
-        pixel_side_length : 0.1f32,
+        max_image_height : 1f32,
+        pixel_side_length : 1f32,
     };
 
     let filename = "terrain.png";

@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy_fly_camera::FlyCamera;
-use bevy_render::mesh::mesh_resource_provider_system;
-use bevy_terrain::{terrain::{Terrain}, terrain_rtin::rtin_load_terrain_bitmap};
+use bevy_terrain::terrain_rtin::rtin_load_terrain_bitmap;
+use bevy_terrain::terrain_common::Terrain;
 
 pub struct ButtonMaterials {
     shaded: Handle<ColorMaterial>,
@@ -23,8 +23,8 @@ impl FromResources for ButtonMaterials {
 
 #[derive(Debug, Eq, PartialEq)]
 enum MeshStyle {
-    shaded, 
-    wireframe
+    Shaded, 
+    Wireframe
 } 
 
 pub fn button_system(
@@ -51,11 +51,11 @@ pub fn button_system(
             Interaction::Clicked => {
                 if shaded_enabled {
                     text.value = "wireframe".to_string();
-                    new_mesh_type = Some(MeshStyle::wireframe);
+                    new_mesh_type = Some(MeshStyle::Wireframe);
                     *material = button_materials.wireframe.clone();
                 } else {
                     text.value = "shaded".to_string();
-                    new_mesh_type = Some(MeshStyle::shaded);
+                    new_mesh_type = Some(MeshStyle::Shaded);
                     *material = button_materials.shaded.clone();
                 }
             }
@@ -81,7 +81,7 @@ pub fn button_system(
 
         let mesh = rtin_load_terrain_bitmap(
             filename, error_threshold, 10.0, 
-                mesh_type == MeshStyle::wireframe).unwrap();
+                mesh_type == MeshStyle::Wireframe).unwrap();
 
         let new_mesh_handle = meshes.add(mesh);
 
@@ -170,10 +170,10 @@ pub fn show_ui_system(
    }
 
     if update_camera {
-        for (mut camera) in camera_query.iter_mut() {
+        for mut camera in camera_query.iter_mut() {
             camera.enabled = enable_camera_movement; 
         } 
-        for (mut visible, menu) in ui_query.iter_mut() {
+        for (mut visible, _menu) in ui_query.iter_mut() {
             visible.is_visible = show_ui;
         } 
 

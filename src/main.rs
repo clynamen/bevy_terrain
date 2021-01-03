@@ -1,13 +1,14 @@
 mod ui;
 
-use bevy_terrain::{gizmo::add_axis_gizmo, terrain::{terrain_example, Terrain}, terrain_shader::MyMaterialWithVertexColorSupport};
+use bevy_terrain::terrain_common::{Terrain, TerrainImageLoadOptions};
+use bevy_terrain::{gizmo::add_axis_gizmo, terrain::{terrain_example}, terrain_material::TerrainMaterial};
 use bevy::prelude::*;
 use bevy_fly_camera::{FlyCamera, FlyCameraPlugin};
 use bevy_render::{
-    pipeline::PrimitiveTopology,
-    mesh::{Mesh, VertexAttributeValues, Indices},
+    mesh::{Mesh},
 };
 use bevy_terrain::terrain_rtin::rtin_terrain_example;
+use bevy_terrain::terrain_material::add_terrain_material;
 use ui::{ButtonMaterials, button_system, setup_ui, show_ui_system};
 
 use bevy::{
@@ -25,7 +26,7 @@ fn main() {
         .add_resource(Msaa { samples: 4 })
         .add_plugins(DefaultPlugins)
         .add_plugin(FlyCameraPlugin)
-        .add_asset::<MyMaterialWithVertexColorSupport>()
+        .add_asset::<TerrainMaterial>()
         .init_resource::<ButtonMaterials>()
         .add_startup_system(setup.system())
         .add_system(button_system.system())
@@ -38,24 +39,20 @@ fn main() {
 fn setup(
     commands: &mut Commands,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    mut terrain_materials: ResMut<Assets<MyMaterialWithVertexColorSupport>>,
+    materials: ResMut<Assets<StandardMaterial>>,
     asset_server: Res<AssetServer>,
     button_materials: Res<ButtonMaterials>,
-    mut pipelines: ResMut<Assets<PipelineDescriptor>>,
-    mut shaders: ResMut<Assets<Shader>>,
-    mut render_graph: ResMut<RenderGraph>
+    pipelines: ResMut<Assets<PipelineDescriptor>>,
+    shaders: ResMut<Assets<Shader>>,
+    render_graph: ResMut<RenderGraph>
 ) {
-    // let terrain_mesh = make_terrain_mesh();
-    // let terrain_mesh = terrain_example();
     let terrain_mesh = rtin_terrain_example();
 
     let terrain_mesh_handle = meshes.add(terrain_mesh);
 
-    let pipeline_handle = bevy_terrain::terrain_shader::add_MyMaterialWithVertexColorSupport(
+    let pipeline_handle = add_terrain_material(
         pipelines, shaders, render_graph);
 
-    let terrain_material = terrain_materials.add(MyMaterialWithVertexColorSupport {});
 
     // add entities to the world
     commands
@@ -74,11 +71,14 @@ fn setup(
         })
         // camera
         .spawn(Camera3dBundle {
-            transform: Transform::from_translation(Vec3::new(10.0, 30.0, 10.0))
+            transform: Transform::from_translation(Vec3::new(0.0, 20.0, 0.0))
                 .looking_at(Vec3::default(), Vec3::unit_y()),
             ..Default::default()
         })
-        .with(FlyCamera::default());
+        .with(FlyCamera{
+            pitch: 180.0,
+            ..Default::default()
+        });
 
     add_axis_gizmo(commands, meshes, materials, 
         Transform::from_translation(Vec3::new(0f32, 0f32, 0f32)));
