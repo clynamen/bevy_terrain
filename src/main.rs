@@ -1,7 +1,6 @@
 mod ui;
 
-use std::sync::mpsc;
-use bevy_terrain::{terrain::{terrain_example, Terrain}, terrain_shader::MyMaterialWithVertexColorSupport};
+use bevy_terrain::{gizmo::add_axis_gizmo, terrain::{terrain_example, Terrain}, terrain_shader::MyMaterialWithVertexColorSupport};
 use bevy::prelude::*;
 use bevy_fly_camera::{FlyCamera, FlyCameraPlugin};
 use bevy_render::{
@@ -14,8 +13,7 @@ use ui::{ButtonMaterials, button_system, setup_ui, show_ui_system};
 use bevy::{
     render::{
         pipeline::{PipelineDescriptor, RenderPipeline},
-        render_graph::{base, AssetRenderResourcesNode, RenderGraph},
-        shader::{ShaderStage, ShaderStages},
+        render_graph::{RenderGraph},
     },
 };
 
@@ -63,7 +61,6 @@ fn setup(
     commands
         // terrain
         .spawn(MeshBundle {
-            // mesh: meshes.add(Mesh::from(shape::Plane { size: 5.0 })),
             mesh: terrain_mesh_handle,
             render_pipelines: RenderPipelines::from_pipelines(vec![RenderPipeline::new(
                 pipeline_handle,
@@ -71,32 +68,6 @@ fn setup(
             transform: Transform::from_translation(Vec3::new(0.0, 0.0, 0.0)),
             ..Default::default()
         }).with(Terrain{})
-        // cube
-        .spawn(PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Cube { size: 0.1 })),
-            material: materials.add(Color::rgb(1.0, 0.0, 0.0).into()),
-            transform: Transform::from_translation(Vec3::new(4.0, 0.0, 0.0)),
-            ..Default::default()
-        })
-        .spawn(PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Cube { size: 0.2 })),
-            material: materials.add(Color::rgb(0.0, 0.0, 0.0).into()),
-            transform: Transform::from_translation(Vec3::new(0.0, 0.0, 0.0)),
-            ..Default::default()
-        })
-        .spawn(PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Cube { size: 0.1 })),
-            material: materials.add(Color::rgb(0.0, 1.0, 0.0).into()),
-            transform: Transform::from_translation(Vec3::new(0.0, 4.0, 0.0)),
-            ..Default::default()
-        })
-        .spawn(PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Cube { size: 0.1 })),
-            material: materials.add(Color::rgb(0.0, 0.0, 1.0).into()),
-            transform: Transform::from_translation(Vec3::new(0.0, 0.0, 4.0)),
-            ..Default::default()
-        })
-        // light
         .spawn(LightBundle {
             transform: Transform::from_translation(Vec3::new(0.0, 4.0, 0.0)),
             ..Default::default()
@@ -109,32 +80,10 @@ fn setup(
         })
         .with(FlyCamera::default());
 
+    add_axis_gizmo(commands, meshes, materials, 
+        Transform::from_translation(Vec3::new(0f32, 0f32, 0f32)));
+
     setup_ui(commands,
         asset_server,
         button_materials);
-}
-
-
-fn make_terrain_mesh() -> Mesh {
-
-    let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
-
-    let vertices : Vec<[f32; 3]> = vec![
-        [0.0, 0.0, 0.0],
-        [0.0, 0.0, 1.0],
-        [1.0, 0.0, 0.0],
-    ];
-    let normals = vec![[0.0, 0.0, 1.0]; 3];
-
-    let indices = vec![0, 1, 2]; 
-    let uvs = vec![[0.0, 0.0, 0.0]; vertices.len()];
-
-    mesh.set_attribute(
-        Mesh::ATTRIBUTE_POSITION,
-        VertexAttributeValues::Float3(vertices));
-    mesh.set_attribute(Mesh::ATTRIBUTE_NORMAL, VertexAttributeValues::Float3(normals));
-    mesh.set_attribute(Mesh::ATTRIBUTE_UV_0, VertexAttributeValues::Float3(uvs));
-    mesh.set_indices(Some(Indices::U32(indices)));
-
-    mesh
 }

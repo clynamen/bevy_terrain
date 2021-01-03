@@ -151,7 +151,6 @@ pub fn show_ui_system(
     mut camera_query: Query<
         &mut FlyCamera
     >,
-    // mut text_query: Query<&mut Text>,
     mut ui_query: Query<(&mut Visible, &Menu)>
 ) {
 
