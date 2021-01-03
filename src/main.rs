@@ -9,7 +9,7 @@ use bevy_render::{
     mesh::{Mesh, VertexAttributeValues, Indices},
 };
 use bevy_terrain::terrain_rtin::rtin_terrain_example;
-use ui::{setup_ui, ButtonMaterials, button_system};
+use ui::{ButtonMaterials, button_system, setup_ui, show_ui_system};
 
 use bevy::{
     render::{
@@ -31,6 +31,7 @@ fn main() {
         .init_resource::<ButtonMaterials>()
         .add_startup_system(setup.system())
         .add_system(button_system.system())
+        .add_system(show_ui_system.system())
         .run();
 }
 

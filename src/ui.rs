@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy_fly_camera::FlyCamera;
 use bevy_render::mesh::mesh_resource_provider_system;
 use bevy_terrain::{terrain::{Terrain}, terrain_rtin::rtin_load_terrain_bitmap};
 
@@ -13,9 +14,9 @@ impl FromResources for ButtonMaterials {
     fn from_resources(resources: &Resources) -> Self {
         let mut materials = resources.get_mut::<Assets<ColorMaterial>>().unwrap();
         ButtonMaterials {
-            shaded: materials.add(Color::rgb(0.15, 0.15, 0.15).into()),
-            wireframe: materials.add(Color::rgb(0.35, 0.75, 0.35).into()),
-            hovered: materials.add(Color::rgb(0.25, 0.25, 0.25).into()),
+            shaded: materials.add(Color::rgb(0.35, 0.35, 0.35).into()),
+            wireframe: materials.add(Color::rgb(0.35, 0.35, 0.35).into()),
+            hovered: materials.add(Color::rgb(0.55, 0.55, 0.55).into()),
         }
     }
 }
@@ -93,8 +94,11 @@ pub fn button_system(
             commands.with(new_mesh_handle.clone());
         }
     }
-}
+} 
 
+pub struct Menu{
+
+}
 
 pub fn setup_ui(
     commands: &mut Commands,
@@ -105,6 +109,9 @@ pub fn setup_ui(
         // ui camera
         .spawn(CameraUiBundle::default())
         .spawn(ButtonBundle {
+            visible: Visible{
+                is_visible: false, 
+                is_transparent: false},
             style: Style {
                 size: Size::new(Val::Px(150.0), Val::Px(65.0)),
                 // center button
@@ -117,9 +124,13 @@ pub fn setup_ui(
             },
             material: button_materials.shaded.clone(),
             ..Default::default()
-        })
+        }).with(Menu{})
         .with_children(|parent| {
             parent.spawn(TextBundle {
+                visible: Visible{
+                    is_visible: false, 
+                    is_transparent: false
+                },
                 text: Text {
                     value: "shaded".to_string(),
                     font: asset_server.load("fonts/FiraSans-Bold.ttf"),
@@ -130,7 +141,43 @@ pub fn setup_ui(
                     },
                 },
                 ..Default::default()
-            });
+            }).with(Menu{});
         });
 }
 
+
+pub fn show_ui_system(
+    keyboard_input: Res<Input<KeyCode>>,
+    mut camera_query: Query<
+        &mut FlyCamera
+    >,
+    // mut text_query: Query<&mut Text>,
+    mut ui_query: Query<(&mut Visible, &Menu)>
+) {
+
+
+   let mut update_camera = false;
+   let mut enable_camera_movement = false;
+   let mut show_ui = false;
+
+   if keyboard_input.just_pressed(KeyCode::Tab) {
+    update_camera = true;
+    enable_camera_movement = false;
+    show_ui = true;
+   } else if keyboard_input.just_released(KeyCode::Tab) {
+    update_camera = true;
+    enable_camera_movement = true;
+    show_ui = false;
+   }
+
+    if update_camera {
+        for (mut camera) in camera_query.iter_mut() {
+            camera.enabled = enable_camera_movement; 
+        } 
+        for (mut visible, menu) in ui_query.iter_mut() {
+            visible.is_visible = show_ui;
+        } 
+
+    }
+
+}
