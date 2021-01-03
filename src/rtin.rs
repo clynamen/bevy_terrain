@@ -7,6 +7,7 @@ use na::Vector2;
 pub type BinId = u32;
 
 pub type Vec2u32 = Vector2<u32>;
+pub type Vec2i32 = Vector2<i32>;
 
 pub type TriangleU32 = (Vec2u32, Vec2u32, Vec2u32);
 
@@ -177,13 +178,11 @@ pub fn bin_id_to_level(bin_id: u32) -> u32 {
 ///    Vec2u32::new(1, 2) );
 /// ```
 ///
-pub fn pixel_coords_for_triangle_mid_point(bin_id: u32, n_tiles: u32) -> Vec2u32 {
-    let triangle_coords = get_triangle_coords(bin_id, n_tiles);
+pub fn pixel_coords_for_triangle_mid_point(bin_id: u32, grid_size: u32) -> Vec2u32 {
+    let triangle_coords = get_triangle_coords(bin_id, grid_size);
     let mid_point = (triangle_coords.0 + triangle_coords.1) / 2;
-    let x = (n_tiles-1).min(mid_point[0]);
-    let y = (n_tiles-1).min(mid_point[1]);
 
-    Vec2u32::new(x, y)
+    Vec2u32::new(mid_point[0], mid_point[1])
 }
 
 /// 
@@ -238,7 +237,7 @@ pub fn pixel_coords_for_triangle_mid_point(bin_id: u32, n_tiles: u32) -> Vec2u32
 ///    (Vec2u32::new(2, 4), Vec2u32::new(2, 2), Vec2u32::new(1, 3)) );
 /// ```
 ///
-pub fn get_triangle_coords(bin_id: u32, n_tiles: u32) -> TriangleU32 {
+pub fn get_triangle_coords(bin_id: u32, grid_size: u32) -> TriangleU32 {
     let mut a = Vec2u32::new(0, 0);
     let mut b = Vec2u32::new(0, 0);
     let mut c = Vec2u32::new(0, 0);
@@ -250,19 +249,19 @@ pub fn get_triangle_coords(bin_id: u32, n_tiles: u32) -> TriangleU32 {
                 // north east right-angle corner
                 a[0] = 0; 
                 a[1] = 0; 
-                b[0] = n_tiles; 
-                b[1] = n_tiles; 
-                c[0] = n_tiles; 
+                b[0] = grid_size-1; 
+                b[1] = grid_size-1; 
+                c[0] = grid_size-1; 
                 c[1] = 0; 
             }
             PartitionStep::BottomLeft => {
                 // north east right-angle corner
-                a[0] = n_tiles; 
-                a[1] = n_tiles; 
+                a[0] = grid_size-1; 
+                a[1] = grid_size-1; 
                 b[0] = 0; 
                 b[1] = 0; 
                 c[0] = 0; 
-                c[1] = n_tiles; 
+                c[1] = grid_size-1; 
 
             }
             PartitionStep::Left => {

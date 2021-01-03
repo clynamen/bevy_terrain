@@ -1,7 +1,7 @@
 mod ui;
 
 use std::sync::mpsc;
-use bevy_terrain::terrain::{terrain_example, Terrain};
+use bevy_terrain::{terrain::{terrain_example, Terrain}, terrain_shader::MyMaterialWithVertexColorSupport};
 use bevy::prelude::*;
 use bevy_fly_camera::{FlyCamera, FlyCameraPlugin};
 use bevy_render::{
@@ -11,6 +11,14 @@ use bevy_render::{
 use bevy_terrain::terrain_rtin::rtin_terrain_example;
 use ui::{setup_ui, ButtonMaterials, button_system};
 
+use bevy::{
+    render::{
+        pipeline::{PipelineDescriptor, RenderPipeline},
+        render_graph::{base, AssetRenderResourcesNode, RenderGraph},
+        shader::{ShaderStage, ShaderStages},
+    },
+};
+
 fn main() {
 
     terrain_example();
@@ -19,6 +27,7 @@ fn main() {
         .add_resource(Msaa { samples: 4 })
         .add_plugins(DefaultPlugins)
         .add_plugin(FlyCameraPlugin)
+        .add_asset::<MyMaterialWithVertexColorSupport>()
         .init_resource::<ButtonMaterials>()
         .add_startup_system(setup.system())
         .add_system(button_system.system())
@@ -31,8 +40,12 @@ fn setup(
     commands: &mut Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    mut terrain_materials: ResMut<Assets<MyMaterialWithVertexColorSupport>>,
     asset_server: Res<AssetServer>,
     button_materials: Res<ButtonMaterials>,
+    mut pipelines: ResMut<Assets<PipelineDescriptor>>,
+    mut shaders: ResMut<Assets<Shader>>,
+    mut render_graph: ResMut<RenderGraph>
 ) {
     // let terrain_mesh = make_terrain_mesh();
     // let terrain_mesh = terrain_example();
@@ -40,13 +53,21 @@ fn setup(
 
     let terrain_mesh_handle = meshes.add(terrain_mesh);
 
+    let pipeline_handle = bevy_terrain::terrain_shader::add_MyMaterialWithVertexColorSupport(
+        pipelines, shaders, render_graph);
+
+    let terrain_material = terrain_materials.add(MyMaterialWithVertexColorSupport {});
+
     // add entities to the world
     commands
-        // plane
-        .spawn(PbrBundle {
+        // terrain
+        .spawn(MeshBundle {
             // mesh: meshes.add(Mesh::from(shape::Plane { size: 5.0 })),
             mesh: terrain_mesh_handle,
-            material: materials.add(Color::rgb(0.3, 0.5, 0.3).into()),
+            render_pipelines: RenderPipelines::from_pipelines(vec![RenderPipeline::new(
+                pipeline_handle,
+            )]),
+            transform: Transform::from_translation(Vec3::new(0.0, 0.0, 0.0)),
             ..Default::default()
         }).with(Terrain{})
         // cube
@@ -57,9 +78,15 @@ fn setup(
             ..Default::default()
         })
         .spawn(PbrBundle {
+            mesh: meshes.add(Mesh::from(shape::Cube { size: 0.2 })),
+            material: materials.add(Color::rgb(0.0, 0.0, 0.0).into()),
+            transform: Transform::from_translation(Vec3::new(0.0, 0.0, 0.0)),
+            ..Default::default()
+        })
+        .spawn(PbrBundle {
             mesh: meshes.add(Mesh::from(shape::Cube { size: 0.1 })),
             material: materials.add(Color::rgb(0.0, 1.0, 0.0).into()),
-            transform: Transform::from_translation(Vec3::new(0.0, 1.0, 0.0)),
+            transform: Transform::from_translation(Vec3::new(0.0, 4.0, 0.0)),
             ..Default::default()
         })
         .spawn(PbrBundle {
