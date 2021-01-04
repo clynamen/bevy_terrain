@@ -9,7 +9,7 @@ use bevy_render::{
     mesh::{Mesh},
 };
 use bevy_terrain::terrain_material::add_terrain_material;
-use ui::{ButtonMaterials, button_system, setup_ui, show_ui_system};
+use ui::{ButtonMaterials, button_system, setup_ui, show_ui_system, update_terrain_system};
 
 use bevy::{
     render::{
@@ -32,6 +32,7 @@ fn main() {
         .init_resource::<RtinParams>()
         .add_startup_system(setup.system())
         .add_system(button_system.system())
+        .add_system(update_terrain_system.system())
         .add_system(show_ui_system.system())
         .run();
 }
@@ -55,7 +56,7 @@ fn setup(
 
     rtin_params.error_threshold = 0.2;
     rtin_params.load_options = TerrainImageLoadOptions {
-        max_image_height : 10f32,
+        max_image_height : 20f32,
         pixel_side_length: 1f32
     };
 
@@ -97,11 +98,11 @@ fn setup(
             ..Default::default()
         });
 
-    add_axis_gizmo(commands, meshes, materials, 
-        Transform::from_translation(Vec3::new(0f32, 0f32, 0f32)));
+    // add_axis_gizmo(commands, meshes, materials, 
+    //     Transform::from_translation(Vec3::new(0f32, 0f32, 0f32)));
 
     setup_ui(commands,
         asset_server,
         color_materials,
-        button_materials, rtin_params.into());
+        button_materials, rtin_params);
 }

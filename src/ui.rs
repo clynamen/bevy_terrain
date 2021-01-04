@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy_fly_camera::FlyCamera;
+use bevy_terrain::{terrain_common::TerrainMeshResource, terrain_rtin::rtin_load_terrain};
 use bevy_terrain::{terrain_common::Terrain, terrain_rtin::RtinParams};
-use bevy_terrain::terrain_common::TerrainMeshResource;
 pub struct ButtonMaterials {
     shaded: Handle<ColorMaterial>,
     wireframe: Handle<ColorMaterial>,
@@ -23,6 +23,44 @@ impl FromResources for ButtonMaterials {
 enum MeshStyle {
     Shaded,
     Wireframe,
+}
+
+pub fn update_terrain_system(
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut rtin_params: ResMut<RtinParams>,
+    keyboard_input: Res<Input<KeyCode>>,
+    mut terrain_query: Query<(Entity, &mut Handle<Mesh>, &Terrain)>,
+    mut text_query: Query<&mut Text, With<RtinParamsMenu>>,
+    mut terrain_mesh_res: ResMut<TerrainMeshResource>,
+    commands: &mut Commands,
+) {
+    let mut reload = false;
+
+    if keyboard_input.just_pressed(KeyCode::Plus) {
+        rtin_params.error_threshold += 0.05;
+    } else if keyboard_input.just_released(KeyCode::Minus) {
+        rtin_params.error_threshold -= 0.05;
+    } else if keyboard_input.just_released(KeyCode::R) {
+        reload = true;
+    }
+
+    rtin_params.error_threshold = rtin_params.
+        error_threshold.max(0f32).min(1f32);
+
+    for mut text in text_query.iter_mut() {
+        text.value = format!("{:.2}", rtin_params.error_threshold);
+    }
+
+    if reload {
+        let (terrain_shaded_mesh, terrain_wireframe_mesh) =
+            rtin_load_terrain("terrain.png", &rtin_params);
+
+        let terrain_shaded_mesh_handle = meshes.add(terrain_shaded_mesh);
+        let terrain_wireframe_mesh_handle = meshes.add(terrain_wireframe_mesh);
+
+        terrain_mesh_res.shaded = terrain_shaded_mesh_handle;
+        terrain_mesh_res.wireframe = terrain_wireframe_mesh_handle;
+    }
 }
 
 pub fn button_system(
@@ -87,6 +125,7 @@ pub fn button_system(
 }
 
 pub struct Menu {}
+pub struct RtinParamsMenu {}
 
 pub fn setup_ui(
     commands: &mut Commands,
@@ -105,11 +144,10 @@ pub fn setup_ui(
             },
             material: materials.add(Color::NONE.into()),
             ..Default::default()
-        }).with(Menu{})
-         .with_children( |root| {
-
-            root
-            .spawn(TextBundle {
+        })
+        .with(Menu {})
+        .with_children(|root| {
+            root.spawn(TextBundle {
                 visible: Visible {
                     is_visible: false,
                     is_transparent: false,
@@ -125,10 +163,9 @@ pub fn setup_ui(
                 },
                 ..Default::default()
             })
-                .with(Menu {})
-
-            .spawn(
-                ButtonBundle {
+            .with(RtinParamsMenu {})
+            .with(Menu {})
+            .spawn(ButtonBundle {
                 visible: Visible {
                     is_visible: false,
                     is_transparent: false,
@@ -145,28 +182,29 @@ pub fn setup_ui(
                 },
                 material: button_materials.shaded.clone(),
                 ..Default::default()
-            }).with(Menu {})
-              .with_children( |parent| {
-                    parent
-                        .spawn(TextBundle {
-                            visible: Visible {
-                                is_visible: false,
-                                is_transparent: false,
+            })
+            .with(Menu {})
+            .with_children(|parent| {
+                parent
+                    .spawn(TextBundle {
+                        visible: Visible {
+                            is_visible: false,
+                            is_transparent: false,
+                        },
+                        text: Text {
+                            value: "shaded".to_string(),
+                            font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                            style: TextStyle {
+                                font_size: 40.0,
+                                color: Color::rgb(0.9, 0.9, 0.9),
+                                ..Default::default()
                             },
-                            text: Text {
-                                value: "shaded".to_string(),
-                                font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                                style: TextStyle {
-                                    font_size: 40.0,
-                                    color: Color::rgb(0.9, 0.9, 0.9),
-                                    ..Default::default()
-                                },
-                            },
-                            ..Default::default()
-                        })
+                        },
+                        ..Default::default()
+                    })
                     .with(Menu {});
+            });
         });
-    });
 }
 
 pub fn show_ui_system(
