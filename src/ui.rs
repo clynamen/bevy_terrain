@@ -55,7 +55,7 @@ pub fn update_terrain_system(
         let (terrain_shaded_mesh, terrain_wireframe_mesh) =
             rtin_load_terrain("terrain.png", &rtin_params);
 
-        let terrain_shaded_mesh_handle = meshes.add(terrain_shaded_mesh);
+        let terrain_shaded_mesh_handle : Handle<Mesh> = meshes.add(terrain_shaded_mesh);
         let terrain_wireframe_mesh_handle = meshes.add(terrain_wireframe_mesh);
 
         terrain_mesh_res.shaded = terrain_shaded_mesh_handle;

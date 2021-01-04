@@ -8,7 +8,7 @@ use bevy_fly_camera::{FlyCamera, FlyCameraPlugin};
 use bevy_render::{
     mesh::{Mesh},
 };
-use bevy_terrain::terrain_material::add_terrain_material;
+use bevy_terrain::terrain_material::add_terrain_pipeline;
 use ui::{ButtonMaterials, button_system, setup_ui, show_ui_system, update_terrain_system};
 
 use bevy::{
@@ -70,9 +70,8 @@ fn setup(
     terrain_mesh_res.shaded = terrain_shaded_mesh_handle;
     terrain_mesh_res.wireframe = terrain_wireframe_mesh_handle;
 
-    let pipeline_handle = add_terrain_material(
+    let pipeline_handle = add_terrain_pipeline(
         pipelines, shaders, render_graph);
-
 
     commands
         .spawn(MeshBundle {

@@ -41,17 +41,16 @@ layout(location = 0) out vec4 o_Target;
 layout(location = 0) in vec3 v_color;
 void main() {
     o_Target = vec4(v_color, 1.0);
-    // o_Target = vec4(1.0, 1.0, 1.0, 1.0);
 }
 "#;
 
-pub fn add_terrain_material(
+pub fn add_terrain_pipeline(
     mut pipelines: ResMut<Assets<PipelineDescriptor>>,
     mut shaders: ResMut<Assets<Shader>>,
     mut render_graph: ResMut<RenderGraph>
 ) -> Handle<PipelineDescriptor> {
 
-        // Create a new shader pipeline
+    // Create a new shader pipeline
     let pipeline_handle = pipelines.add(PipelineDescriptor::default_config(ShaderStages {
         vertex: shaders.add(Shader::from_glsl(ShaderStage::Vertex, VERTEX_SHADER)),
         fragment: Some(shaders.add(Shader::from_glsl(ShaderStage::Fragment, FRAGMENT_SHADER))),
@@ -59,14 +58,15 @@ pub fn add_terrain_material(
 
     // Add an AssetRenderResourcesNode to our Render Graph. This will bind TerrainMaterial resources to our shader
     render_graph.add_system_node(
-        "my_material_with_vertex_color_support",
+        "terrain_material_node",
         AssetRenderResourcesNode::<TerrainMaterial>::new(true),
     );
 
-    // Add a Render Graph edge connecting our new "my_material" node to the main pass node. This ensures "my_material" runs before the main pass
+    // Add a Render Graph edge connecting our new "terrain_material_node" node to the main pass node. 
+    // This ensures "terrain_material_node" runs before the main pass
     render_graph
         .add_node_edge(
-            "my_material_with_vertex_color_support",
+            "terrain_material_node",
             base::node::MAIN_PASS,
         )
         .unwrap();
