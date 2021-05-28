@@ -3,18 +3,18 @@ use bevy_fly_camera::FlyCamera;
 use bevy_terrain::{terrain_common::TerrainMeshResource, terrain_rtin::rtin_load_terrain};
 use bevy_terrain::{terrain_common::Terrain, terrain_rtin::RtinParams};
 pub struct ButtonMaterials {
-    shaded: Handle<ColorMaterial>,
-    wireframe: Handle<ColorMaterial>,
+    normal: Handle<ColorMaterial>,
     hovered: Handle<ColorMaterial>,
+    pressed: Handle<ColorMaterial>,
 }
 
-impl FromResources for ButtonMaterials {
-    fn from_resources(resources: &Resources) -> Self {
-        let mut materials = resources.get_mut::<Assets<ColorMaterial>>().unwrap();
+impl FromWorld for ButtonMaterials {
+    fn from_world(world: &mut World) -> Self {
+        let mut materials = world.get_resource_mut::<Assets<ColorMaterial>>().unwrap();
         ButtonMaterials {
-            shaded: materials.add(Color::rgb(0.35, 0.35, 0.35).into()),
-            wireframe: materials.add(Color::rgb(0.35, 0.35, 0.35).into()),
-            hovered: materials.add(Color::rgb(0.55, 0.55, 0.55).into()),
+            normal: materials.add(Color::rgb(0.35, 0.35, 0.35).into()),
+            hovered: materials.add(Color::rgb(0.35, 0.35, 0.35).into()),
+            pressed: materials.add(Color::rgb(0.55, 0.55, 0.55).into()),
         }
     }
 }
@@ -32,7 +32,7 @@ pub fn update_terrain_system(
     mut terrain_query: Query<(Entity, &mut Handle<Mesh>, &Terrain)>,
     mut text_query: Query<&mut Text, With<RtinParamsMenu>>,
     mut terrain_mesh_res: ResMut<TerrainMeshResource>,
-    commands: &mut Commands,
+    mut commands: Commands,
 ) {
     let mut reload = false;
 
@@ -48,7 +48,7 @@ pub fn update_terrain_system(
         error_threshold.max(0f32).min(1f32);
 
     for mut text in text_query.iter_mut() {
-        text.value = format!("{:.2}", rtin_params.error_threshold);
+        text.sections[0].value = format!("{:.2}", rtin_params.error_threshold);
     }
 
     if reload {
@@ -67,30 +67,30 @@ pub fn button_system(
     button_materials: Res<ButtonMaterials>,
     mut interaction_query: Query<
         (&Interaction, &mut Handle<ColorMaterial>, &Children),
-        (Mutated<Interaction>, With<Button>),
+        (Changed<Interaction>, With<Button>),
     >,
     mut terrain_query: Query<(Entity, &mut Handle<Mesh>, &Terrain)>,
     mut text_query: Query<&mut Text>,
     terrain_mesh_res: Res<TerrainMeshResource>,
-    commands: &mut Commands,
+    mut commands: Commands,
 ) {
     let mut new_mesh_type = Option::<MeshStyle>::None;
 
     for (interaction, mut material, children) in interaction_query.iter_mut() {
         let mut text = text_query.get_mut(children[0]).unwrap();
 
-        let shaded_enabled = text.value == "shaded";
+        let shaded_enabled = text.sections[0].value == "shaded";
 
         match *interaction {
             Interaction::Clicked => {
                 if shaded_enabled {
-                    text.value = "wireframe".to_string();
+                    text.sections[0].value = "wireframe".to_string();
                     new_mesh_type = Some(MeshStyle::Wireframe);
-                    *material = button_materials.wireframe.clone();
+                    *material = button_materials.hovered.clone();
                 } else {
-                    text.value = "shaded".to_string();
+                    text.sections[0].value = "shaded".to_string();
                     new_mesh_type = Some(MeshStyle::Shaded);
-                    *material = button_materials.shaded.clone();
+                    *material = button_materials.normal.clone();
                 }
             }
             Interaction::Hovered => {
@@ -99,9 +99,9 @@ pub fn button_system(
             }
             Interaction::None => {
                 if shaded_enabled {
-                    *material = button_materials.wireframe.clone();
+                    *material = button_materials.pressed.clone();
                 } else {
-                    *material = button_materials.shaded.clone();
+                    *material = button_materials.normal.clone();
                 }
             }
         }
@@ -117,9 +117,14 @@ pub fn button_system(
         };
 
         for (entity, mut mesh, _terrain) in terrain_query.iter_mut() {
+            let mut ec = commands.entity(entity);
+            ec.remove::<Handle<Mesh>>();
+            //ec.commands();
+            /*
             commands.remove_one::<Handle<Mesh>>(entity);
             commands.set_current_entity(entity);
             commands.with(new_mesh_handle.clone());
+            */
         }
     }
 }
@@ -135,8 +140,10 @@ pub fn setup_ui(
     rtin_params: ResMut<RtinParams>,
 ) {
     commands
-        .spawn(CameraUiBundle::default())
-        .spawn(NodeBundle {
+        .spawn_bundle(OrthographicCameraBundle::new_2d());
+
+    commands
+        .spawn_bundle(NodeBundle {
             style: Style {
                 size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
                 justify_content: JustifyContent::SpaceBetween,
@@ -145,27 +152,28 @@ pub fn setup_ui(
             material: materials.add(Color::NONE.into()),
             ..Default::default()
         })
-        .with(Menu {})
+        .insert(Menu {})
         .with_children(|root| {
-            root.spawn(TextBundle {
+            root.spawn_bundle(TextBundle {
                 visible: Visible {
                     is_visible: false,
                     is_transparent: false,
                 },
-                text: Text {
-                    value: format!("{}", rtin_params.error_threshold).to_string(),
-                    font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                    style: TextStyle {
+                text: Text::with_section(
+                    format!("{}", rtin_params.error_threshold).to_string(),
+                    TextStyle {
+                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
                         font_size: 40.0,
                         color: Color::rgb(0.9, 0.9, 0.9),
-                        ..Default::default()
                     },
-                },
+                    TextAlignment::default()
+                ),
                 ..Default::default()
             })
-            .with(RtinParamsMenu {})
-            .with(Menu {})
-            .spawn(ButtonBundle {
+            .insert(RtinParamsMenu {})
+            .insert(Menu {});
+            root
+            .spawn_bundle(ButtonBundle {
                 visible: Visible {
                     is_visible: false,
                     is_transparent: false,
@@ -180,29 +188,29 @@ pub fn setup_ui(
                     align_items: AlignItems::Center,
                     ..Default::default()
                 },
-                material: button_materials.shaded.clone(),
+                material: button_materials.normal.clone(),
                 ..Default::default()
             })
-            .with(Menu {})
+            .insert(Menu {})
             .with_children(|parent| {
                 parent
-                    .spawn(TextBundle {
+                    .spawn_bundle(TextBundle {
                         visible: Visible {
                             is_visible: false,
                             is_transparent: false,
                         },
-                        text: Text {
-                            value: "shaded".to_string(),
-                            font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                            style: TextStyle {
+                        text: Text::with_section(
+                            "shaded".to_string(),
+                            TextStyle {
+                                font: asset_server.load("fonts/FiraSans-Bold.ttf"),
                                 font_size: 40.0,
                                 color: Color::rgb(0.9, 0.9, 0.9),
-                                ..Default::default()
                             },
-                        },
+                            TextAlignment::default()
+                        ),
                         ..Default::default()
                     })
-                    .with(Menu {});
+                    .insert(Menu {});
             });
         });
 }

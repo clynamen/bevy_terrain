@@ -11,27 +11,27 @@ pub fn add_axis_gizmo(
     transform: Transform
 ) {
     commands
-        .spawn(PbrBundle {
+        .spawn_bundle(PbrBundle {
             mesh: meshes.add(Mesh::from(shape::Icosphere { radius: 0.1, subdivisions: 10 })),
             material: materials.add(Color::rgb(0.0, 0.0, 0.0).into()),
             transform: transform,
             ..Default::default()
-        }).with(AxisGizmo{})
+        }).insert(AxisGizmo{})
         .with_children(|parent: &mut ChildBuilder| {
             parent
-            .spawn(PbrBundle {
+            .spawn_bundle(PbrBundle {
                 mesh: meshes.add(Mesh::from(shape::Cube { size: 0.1 })),
                 material: materials.add(Color::rgb(1.0, 0.0, 0.0).into()),
                 transform: Transform::from_translation(Vec3::new(1.0, 0.0, 0.0)),
                 ..Default::default()
-            })
-            .spawn(PbrBundle {
+            });
+            parent.spawn_bundle(PbrBundle {
                 mesh: meshes.add(Mesh::from(shape::Cube { size: 0.1 })),
                 material: materials.add(Color::rgb(0.0, 1.0, 0.0).into()),
                 transform: Transform::from_translation(Vec3::new(0.0, 1.0, 0.0)),
                 ..Default::default()
-            })
-            .spawn(PbrBundle {
+            });
+            parent.spawn_bundle(PbrBundle {
                 mesh: meshes.add(Mesh::from(shape::Cube { size: 0.1 })),
                 material: materials.add(Color::rgb(0.0, 0.0, 1.0).into()),
                 transform: Transform::from_translation(Vec3::new(0.0, 0.0, 1.0)),

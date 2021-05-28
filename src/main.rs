@@ -23,7 +23,7 @@ fn main() {
     terrain_example();
 
     App::build()
-        .add_resource(Msaa { samples: 4 })
+        .insert_resource(Msaa { samples: 4 })
         .add_plugins(DefaultPlugins)
         .add_plugin(FlyCameraPlugin)
         .add_asset::<TerrainMaterial>()
@@ -39,19 +39,18 @@ fn main() {
 
 
 fn setup(
-    commands: &mut Commands,
+    mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     materials: ResMut<Assets<StandardMaterial>>,
     asset_server: Res<AssetServer>,
     button_materials: Res<ButtonMaterials>,
-    pipelines: ResMut<Assets<PipelineDescriptor>>,
-    shaders: ResMut<Assets<Shader>>,
-    render_graph: ResMut<RenderGraph>,
+    mut pipelines: ResMut<Assets<PipelineDescriptor>>,
+    mut shaders: ResMut<Assets<Shader>>,
+    mut render_graph: ResMut<RenderGraph>,
     mut rtin_params: ResMut<RtinParams>,
     mut terrain_mesh_res: ResMut<TerrainMeshResource>,
-    color_materials: ResMut<Assets<ColorMaterial>>,
+    mut color_materials: ResMut<Assets<ColorMaterial>>,
 ) {
-
     let image_filename = "terrain.png";
 
     rtin_params.error_threshold = 0.2;
@@ -75,25 +74,25 @@ fn setup(
 
 
     commands
-        .spawn(MeshBundle {
+        .spawn_bundle(MeshBundle {
             mesh: terrain_mesh_res.shaded.clone(),
             render_pipelines: RenderPipelines::from_pipelines(vec![RenderPipeline::new(
                 pipeline_handle,
             )]),
             transform: Transform::from_translation(Vec3::new(0.0, 0.0, 0.0)),
             ..Default::default()
-        }).with(Terrain{})
-        .spawn(LightBundle {
+        }).insert(Terrain{});
+    commands.spawn_bundle(LightBundle {
             transform: Transform::from_translation(Vec3::new(0.0, 4.0, 0.0)),
             ..Default::default()
-        })
+        });
         // camera
-        .spawn(Camera3dBundle {
+    commands.spawn_bundle(PerspectiveCameraBundle {
             transform: Transform::from_translation(Vec3::new(0.0, 20.0, 0.0))
-                .looking_at(Vec3::default(), Vec3::unit_y()),
+                .looking_at(Vec3::default(), Vec3::Y),
             ..Default::default()
         })
-        .with(FlyCamera{
+        .insert(FlyCamera{
             pitch: 180.0,
             ..Default::default()
         });
@@ -101,7 +100,7 @@ fn setup(
     // add_axis_gizmo(commands, meshes, materials, 
     //     Transform::from_translation(Vec3::new(0f32, 0f32, 0f32)));
 
-    setup_ui(commands,
+    setup_ui(&mut commands,
         asset_server,
         color_materials,
         button_materials, rtin_params);
